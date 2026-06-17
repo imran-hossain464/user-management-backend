@@ -46,9 +46,14 @@ router.patch("/block", async (req, res) => {
     const result = await pool.query(
       `
       UPDATE users
-      SET status = 'blocked'
+      SET
+        previous_status = CASE
+          WHEN status = 'blocked' THEN previous_status
+          ELSE status
+        END,
+        status = 'blocked'
       WHERE id = ANY($1::uuid[])
-      RETURNING id, email, status
+      RETURNING id, email, status, previous_status
       `,
       [ids]
     );
@@ -65,7 +70,6 @@ router.patch("/block", async (req, res) => {
     });
   }
 });
-
 router.patch("/unblock", async (req, res) => {
   try {
     const { ids } = req.body;
@@ -79,15 +83,19 @@ router.patch("/unblock", async (req, res) => {
     const result = await pool.query(
       `
       UPDATE users
-      SET status = 'active'
+      SET
+        status = COALESCE(previous_status, 'unverified'),
+        previous_status = NULL
       WHERE id = ANY($1::uuid[])
+        AND status = 'blocked'
       RETURNING id, email, status
       `,
       [ids]
     );
 
     return res.json({
-      message: "Selected users were unblocked successfully.",
+      message:
+        "Selected users were unblocked successfully and returned to their previous status.",
       users: result.rows,
     });
   } catch (error) {
@@ -98,7 +106,6 @@ router.patch("/unblock", async (req, res) => {
     });
   }
 });
-
 router.delete("/", async (req, res) => {
   try {
     const { ids } = req.body;

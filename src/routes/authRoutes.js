@@ -108,7 +108,7 @@ router.post("/login", async (req, res) => {
     await pool.query(
       `
       UPDATE users
-      SET last_login_at = NOW(), last_activity_at = NOW()
+      SET last_login_at = NOW()
       WHERE id = $1
       `,
       [user.id]
