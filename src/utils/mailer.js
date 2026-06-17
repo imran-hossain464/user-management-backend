@@ -1,24 +1,41 @@
-const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
 
 async function sendVerificationEmail(email, token) {
-  const verifyUrl = `${process.env.CLIENT_URL}/verify?token=${token}`;
-
-  if (!process.env.RESEND_API_KEY || !process.env.MAIL_FROM) {
-    console.log("Email API is not configured. Verification link:");
-    console.log(verifyUrl);
+  if (
+    !process.env.SMTP_HOST ||
+    !process.env.SMTP_USER ||
+    !process.env.SMTP_PASS ||
+    !process.env.MAIL_FROM
+  ) {
+    console.log("SMTP is not configured. Verification link:");
+    console.log(`${process.env.CLIENT_URL}/verify?token=${token}`);
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const smtpPort = Number(process.env.SMTP_PORT || 587);
 
-  await resend.emails.send({
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+
+  const verifyUrl = `${process.env.CLIENT_URL}/verify?token=${token}`;
+
+  await transporter.sendMail({
     from: process.env.MAIL_FROM,
     to: email,
     subject: "Verify your account",
     html: `
       <p>Hello,</p>
-      <p>Your account has been registered successfully.</p>
-      <p>Please click the link below to verify your email:</p>
+      <p>Please verify your account by clicking the link below:</p>
       <p><a href="${verifyUrl}">${verifyUrl}</a></p>
       <p>If your account is blocked, verification will not unblock it.</p>
     `,
