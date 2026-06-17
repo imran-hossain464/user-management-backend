@@ -14,7 +14,7 @@ function createToken(userId) {
   });
 }
 
-router.post("/register", async (req, res) => {
+  router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -27,7 +27,6 @@ router.post("/register", async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
     const verificationToken = getVerificationToken();
 
-    // important: no manual duplicate email check here; database unique index handles it
     const result = await pool.query(
       `
       INSERT INTO users (name, email, password_hash, status, verification_token)
@@ -37,17 +36,18 @@ router.post("/register", async (req, res) => {
       [name.trim(), email.trim().toLowerCase(), passwordHash, verificationToken]
     );
 
-    // note: email is sent asynchronously after registration succeeds
+    /* note: teacher allowed emulation, so email sending is optional
     sendVerificationEmail(email.trim().toLowerCase(), verificationToken).catch(
       (error) => {
         console.error("Verification email failed:", error.message);
       }
-    );
+    );*/
 
     return res.status(201).json({
       message:
-        "Registration successful. You can login now. Verification email will be sent shortly.",
+        "Registration successful. You can login now. Use the verification button to verify your email.",
       user: result.rows[0],
+      verificationToken,
     });
   } catch (error) {
     if (error.code === "23505") {
